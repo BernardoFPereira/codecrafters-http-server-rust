@@ -9,12 +9,29 @@ fn main() {
     // Uncomment this block to pass the first stage
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
 
+    // match listener.accept() {
+    //     Ok((mut stream, addr)) => {
+    //         connection_ok(&mut stream);
+    //         println!("{addr:?}");
+    //         // stream.write_all(b"{addr:?}").unwrap();
+    //     }
+    //     Err(e) => {}
+    // }
+
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
                 println!("accepted new connection");
-                connection_ok(&mut stream);
-                crlf(&mut stream);
+                match listener.accept() {
+                    Ok((socket, addr)) => {
+                        println!("{socket:?}\n{addr:?}");
+                        connection_ok(&mut stream);
+                        crlf(&mut stream);
+                    }
+                    Err(e) => {
+                        println!("error: {}", e);
+                    }
+                }
             }
             Err(e) => {
                 println!("error: {}", e);
