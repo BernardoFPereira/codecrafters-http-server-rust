@@ -1,5 +1,4 @@
 // Uncomment this block to pass the first stage
-use std::fs::*;
 use std::io::{prelude::*, BufReader};
 use std::net::{TcpListener, TcpStream};
 use std::path::*;
@@ -13,15 +12,6 @@ fn main() {
     // Uncomment this block to pass the first stage
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
 
-    // match listener.accept() {
-    //     Ok((mut stream, addr)) => {
-    //         connection_ok(&mut stream);
-    //         println!("{addr:?}");
-    //         // stream.write_all(b"{addr:?}").unwrap();
-    //     }
-    //     Err(e) => {}
-    // }
-
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
@@ -34,28 +24,25 @@ fn main() {
                     .take_while(|line| !line.is_empty())
                     .collect();
 
-                let (_func, mut args) = parse_request(&http_request);
-                let args_len = args.len();
-                args.retain(|c| if args_len > 1 { c != '/' } else { true });
+                let (_func, args) = parse_request(&http_request);
 
-                println!("Looking for: {}", args);
+                let target_str = match args.strip_prefix("/") {
+                    Some(dir) => {
+                        format!(".{}{}", MAIN_SEPARATOR, dir)
+                    }
+                    None => MAIN_SEPARATOR_STR.to_string(),
+                };
 
-                if args == "/".to_string() {
-                    connection_ok(&mut stream);
-                    crlf(&mut stream);
-                    continue;
-                }
+                let target_path = Path::new(&target_str);
 
-                if let Ok(_) = read_to_string(args) {
+                println!("Looking for page: {}", args);
+
+                println!("target dir: {:?}", target_path);
+                if let Ok(_) = target_path.metadata() {
                     connection_ok(&mut stream);
                 } else {
                     not_found(&mut stream);
                 }
-                // if args != "/" {
-                //     not_found(&mut stream);
-                //     crlf(&mut stream);
-                //     continue;
-                // }
 
                 crlf(&mut stream);
             }
