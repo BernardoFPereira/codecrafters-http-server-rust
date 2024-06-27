@@ -1,4 +1,5 @@
 // Uncomment this block to pass the first stage
+use std::fs::*;
 use std::io::{prelude::*, BufReader};
 use std::net::{TcpListener, TcpStream};
 use std::path::*;
@@ -24,22 +25,44 @@ fn main() {
                     .take_while(|line| !line.is_empty())
                     .collect();
 
-                let (_func, args) = parse_request(&http_request);
+                let (_method, request_target) = parse_request(&http_request);
+                let mut split_request = request_target
+                    .split('/')
+                    .filter(|string| !string.is_empty());
 
-                let target_str = match args.strip_prefix("/") {
-                    Some(dir) => {
-                        format!(".{}{}", MAIN_SEPARATOR, dir)
-                    }
-                    None => MAIN_SEPARATOR_STR.to_string(),
+                println!("Looking for page: {}", request_target);
+
+                let joined_target = split_request.join(MAIN_SEPARATOR_STR);
+
+                let target_path = if joined_target.is_empty() {
+                    Path::new(MAIN_SEPARATOR_STR)
+                } else {
+                    Path::new(&joined_target)
                 };
 
-                let target_path = Path::new(&target_str);
+                println!("Target Path: {:?}", target_path);
 
-                println!("Looking for page: {}", args);
-
-                println!("target dir: {:?}", target_path);
-                if let Ok(_) = target_path.metadata() {
+                if let Ok(metadata) = target_path.metadata() {
                     connection_ok(&mut stream);
+                    if metadata.is_dir() {
+                        println!("This is a directory. Looking for index.html");
+                    }
+                    if metadata.is_file() {
+                        println!("This is a file. Attempt to retrieve content.");
+                        match read_to_string(target_path) {
+                            Ok(content) => {
+                                let length = &content.len();
+                                let response =
+                                    format!("Content-Length: {}\r\n\r\n{}", length, content);
+                                stream.write(response.as_bytes()).unwrap();
+                            }
+                            Err(_) => {
+                                println!("Error reading page contents!");
+                                not_found(&mut stream);
+                                continue;
+                            }
+                        }
+                    }
                 } else {
                     not_found(&mut stream);
                 }
@@ -66,8 +89,14 @@ fn crlf(stream: &mut TcpStream) -> usize {
 }
 
 fn parse_request(request: &Vec<String>) -> (String, String) {
-    if let Some((func, args, _)) = request[0].split_whitespace().collect_tuple() {
-        println!("Command: {}\nArgs: {}", func, args);
+    if let Some((func, args, _)) = request
+        .iter()
+        .next()
+        .unwrap_or(&String::from("."))
+        .split_whitespace()
+        .collect_tuple()
+    {
+        // println!("Command: {}\nArgs: {}", func, args);
         return (func.to_string(), args.to_string());
     }
     return ("".to_string(), "".to_string());
