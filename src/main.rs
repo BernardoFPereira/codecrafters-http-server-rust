@@ -55,7 +55,7 @@ fn handle_request(stream: &mut TcpStream, request_target: String) {
             let content_type = "text/plain";
 
             let response = format!(
-                "Content-Type: {content_type}\r\n\r\nContent-Length: {length}\r\n\r\n{content}"
+                "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
             );
             connection_ok(stream);
             stream.write(response.as_bytes()).unwrap();
