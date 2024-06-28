@@ -49,11 +49,14 @@ fn handle_request(stream: &mut TcpStream, request_target: String) {
         .next()
     {
         if cmd.trim().to_lowercase() == "echo" {
-            println!(">> Echo detected!");
+            // println!(">> Echo detected!");
             let content = split_target.clone().skip(1).next().unwrap();
             let length = &content.len();
+            let content_type = "text/plain";
 
-            let response = format!("Content-Length: {length}\r\n\r\n{content}");
+            let response = format!(
+                "Content-Type: {content_type}\r\n\r\nContent-Length: {length}\r\n\r\n{content}"
+            );
             connection_ok(stream);
             stream.write(response.as_bytes()).unwrap();
             return;
