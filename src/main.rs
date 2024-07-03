@@ -6,6 +6,28 @@ use std::path::*;
 
 use itertools::Itertools;
 
+struct Request {
+    request_line: String,
+    host_name: String,
+    headers: Vec<String>,
+}
+impl Request {
+    fn new(stream: &mut TcpStream) -> Self {
+        let buf_reader = BufReader::new(stream);
+        let http_request: Vec<_> = buf_reader
+            .lines()
+            .map(|result| result.unwrap())
+            .take_while(|line| !line.is_empty())
+            .collect();
+
+        Self {
+            request_line: http_request[0].clone(),
+            host_name: http_request[1].clone(),
+            headers: http_request[2..].to_vec(),
+        }
+    }
+}
+
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
@@ -18,14 +40,14 @@ fn main() {
             Ok(mut stream) => {
                 println!("accepted new connection");
 
-                let buf_reader = BufReader::new(&mut stream);
-                let http_request: Vec<_> = buf_reader
-                    .lines()
-                    .map(|result| result.unwrap())
-                    .take_while(|line| !line.is_empty())
-                    .collect();
+                let http_request = Request::new(&mut stream);
 
-                let (_method, request_target) = parse_request(&http_request);
+                let foo = match parse_request(&http_request) {
+                    Ok(value) => {}
+                    Err(e) => {}
+                };
+
+                let (_method, request_target) = parse_request_line(http_request.request_line);
 
                 handle_request(&mut stream, request_target);
 
@@ -43,23 +65,24 @@ fn handle_request(stream: &mut TcpStream, request_target: String) {
         .split('/')
         .filter(|string| !string.is_empty());
 
-    if let Some(cmd) = split_target
-        .clone()
-        // .find(|cmd| cmd.to_lowercase() == "echo")
-        .next()
-    {
-        if cmd.trim().to_lowercase() == "echo" {
-            // println!(">> Echo detected!");
-            let content = split_target.clone().skip(1).next().unwrap();
-            let length = &content.len();
-            let content_type = "text/plain";
+    if let Some(cmd) = split_target.clone().next() {
+        match cmd.trim().to_lowercase().as_str() {
+            "echo" => {
+                let content = split_target.clone().skip(1).next().unwrap();
+                let length = &content.len();
+                let content_type = "text/plain";
 
-            let response = format!(
-                "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
-            );
-            connection_ok(stream);
-            stream.write(response.as_bytes()).unwrap();
-            return;
+                let response = format!(
+                    "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
+                );
+                connection_ok(stream);
+                stream.write(response.as_bytes()).unwrap();
+                return;
+            }
+            "user-agent" => {
+                // TODO - capture Usar-Agent header value
+            }
+            _ => {}
         }
     }
 
@@ -103,14 +126,18 @@ fn handle_request(stream: &mut TcpStream, request_target: String) {
     }
 }
 
-fn parse_request(request: &Vec<String>) -> (String, String) {
-    if let Some((func, args, _)) = request
-        .iter()
-        .next()
-        .unwrap_or(&String::from("."))
-        .split_whitespace()
-        .collect_tuple()
-    {
+fn parse_request(request: &Request) -> Result<(String, String, Vec<String>), String> {
+    let headers = request.headers.clone();
+
+    if let Some((method, target, _)) = request.request_line.split_whitespace().collect_tuple() {
+        return Ok((method.to_string(), target.to_string(), headers));
+    }
+
+    return Err("Malformed request!".to_string());
+}
+
+fn parse_request_line(request_line: String) -> (String, String) {
+    if let Some((func, args, _)) = request_line.split_whitespace().collect_tuple() {
         return (func.to_string(), args.to_string());
     }
     return ("".to_string(), "".to_string());
