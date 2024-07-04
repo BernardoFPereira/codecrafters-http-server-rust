@@ -2,6 +2,7 @@
 use std::fs::*;
 use std::io::{prelude::*, BufReader};
 use std::net::{TcpListener, TcpStream};
+use std::ops::Deref;
 use std::path::*;
 
 use itertools::Itertools;
@@ -42,14 +43,19 @@ fn main() {
 
                 let http_request = Request::new(&mut stream);
 
-                let foo = match parse_request(&http_request) {
-                    Ok(value) => {}
-                    Err(e) => {}
+                match parse_request(&http_request) {
+                    Ok(value) => {
+                        println!("{value:?}");
+                    }
+                    Err(e) => {
+                        println!("{e}");
+                        continue;
+                    }
                 };
 
-                let (_method, request_target) = parse_request_line(http_request.request_line);
+                let (_method, endpoint) = parse_request_line(&http_request.request_line);
 
-                handle_request(&mut stream, request_target);
+                handle_request(&mut stream, &http_request, endpoint);
 
                 crlf(&mut stream);
             }
@@ -60,10 +66,8 @@ fn main() {
     }
 }
 
-fn handle_request(stream: &mut TcpStream, request_target: String) {
-    let mut split_target = request_target
-        .split('/')
-        .filter(|string| !string.is_empty());
+fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
+    let mut split_target = endpoint.split('/').filter(|string| !string.is_empty());
 
     if let Some(cmd) = split_target.clone().next() {
         match cmd.trim().to_lowercase().as_str() {
@@ -72,21 +76,40 @@ fn handle_request(stream: &mut TcpStream, request_target: String) {
                 let length = &content.len();
                 let content_type = "text/plain";
 
-                let response = format!(
+                let response_content = format!(
                     "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
                 );
                 connection_ok(stream);
-                stream.write(response.as_bytes()).unwrap();
+                stream.write(response_content.as_bytes()).unwrap();
                 return;
             }
             "user-agent" => {
-                // TODO - capture Usar-Agent header value
+                // TODO - capture User-Agent header value
+                let agent_header = request
+                    .headers
+                    .iter()
+                    .find(|header| header.contains("User-Agent:"))
+                    .unwrap()
+                    .to_owned();
+
+                println!("{:?}", agent_header);
+
+                let length = agent_header.len();
+                let content_type = "text/plain";
+
+                let response_content = format!(
+                    "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{agent_header}"
+                );
+
+                connection_ok(stream);
+                stream.write(response_content.as_bytes()).unwrap();
+                return;
             }
             _ => {}
         }
     }
 
-    println!("Looking for page: {}", request_target);
+    println!("Looking for page: {}", endpoint);
 
     let joined_target = split_target.join(MAIN_SEPARATOR_STR);
     let target_path = if joined_target.is_empty() {
@@ -126,17 +149,22 @@ fn handle_request(stream: &mut TcpStream, request_target: String) {
     }
 }
 
-fn parse_request(request: &Request) -> Result<(String, String, Vec<String>), String> {
+fn parse_request(request: &Request) -> Result<(String, String, String, Vec<String>), String> {
     let headers = request.headers.clone();
 
     if let Some((method, target, _)) = request.request_line.split_whitespace().collect_tuple() {
-        return Ok((method.to_string(), target.to_string(), headers));
+        return Ok((
+            method.to_string(),
+            target.to_string(),
+            request.host_name.clone(),
+            headers,
+        ));
     }
 
     return Err("Malformed request!".to_string());
 }
 
-fn parse_request_line(request_line: String) -> (String, String) {
+fn parse_request_line(request_line: &String) -> (String, String) {
     if let Some((func, args, _)) = request_line.split_whitespace().collect_tuple() {
         return (func.to_string(), args.to_string());
     }
