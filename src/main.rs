@@ -84,7 +84,6 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
                 return;
             }
             "user-agent" => {
-                // TODO - capture User-Agent header value
                 let agent_header = request
                     .headers
                     .iter()
@@ -92,13 +91,15 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
                     .unwrap()
                     .to_owned();
 
-                println!("{:?}", agent_header);
+                // println!("{:?}", agent_header);
+
+                let content = agent_header.split_once(" ").unwrap().1.to_string();
 
                 let length = agent_header.len();
                 let content_type = "text/plain";
 
                 let response_content = format!(
-                    "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{agent_header}"
+                    "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
                 );
 
                 connection_ok(stream);
