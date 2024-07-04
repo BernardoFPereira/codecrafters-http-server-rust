@@ -62,7 +62,7 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
         (endpoint[1..].to_string(), "".to_string())
     };
 
-    // println!("{:?}", split_endpoint);
+    println!("{:?}", split_endpoint);
 
     match split_endpoint.0.trim().to_lowercase().as_str() {
         "echo" => {
@@ -98,6 +98,14 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
             connection_ok(stream);
             stream.write(response_content.as_bytes()).unwrap();
             return;
+        }
+        "files" => {
+            // TODO -- look for specified path
+            let path = Path::new(&split_endpoint.1);
+            if let Ok(metadata) = path.metadata() {
+                connection_ok(stream);
+                return;
+            }
         }
         _ => {}
     }
