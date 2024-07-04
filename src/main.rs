@@ -42,16 +42,6 @@ fn main() {
 
                 let http_request = Request::new(&mut stream);
 
-                // match parse_request(&http_request) {
-                //     Ok(value) => {
-                //         println!("{value:?}");
-                //     }
-                //     Err(e) => {
-                //         println!("{e}");
-                //         continue;
-                //     }
-                // };
-
                 let (_method, endpoint) = parse_request_line(&http_request.request_line);
 
                 handle_request(&mut stream, &http_request, endpoint);
@@ -74,7 +64,6 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
 
     // println!("{:?}", split_endpoint);
 
-    // if let (cmd, args) = split_endpoint {
     match split_endpoint.0.trim().to_lowercase().as_str() {
         "echo" => {
             let content = split_endpoint.1;
@@ -112,7 +101,6 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
         }
         _ => {}
     }
-    // }
 
     println!("Looking for page: {}", endpoint);
 
@@ -120,8 +108,7 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
         .split("/")
         .filter(|e| !e.is_empty())
         .join(MAIN_SEPARATOR_STR);
-    // let target_path = if joined_target.is_empty() {
-    // let formatted_path = spl
+
     let target_path = if formatted_endpoint.is_empty() {
         Path::new(MAIN_SEPARATOR_STR)
     } else {
@@ -144,7 +131,10 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
             match read_to_string(target_path) {
                 Ok(content) => {
                     let length = &content.len();
-                    let response = format!("Content-Length: {length}\r\n\r\n{content}");
+                    let content_type = "application/octet-stream";
+                    let response = format!(
+                        "Content-Type:{content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
+                    );
                     stream.write(response.as_bytes()).unwrap();
                 }
                 Err(_) => {
