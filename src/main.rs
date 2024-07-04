@@ -118,8 +118,8 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
     println!("Target Path: {:?}", target_path);
 
     if let Ok(metadata) = target_path.metadata() {
-        connection_ok(stream);
         if metadata.is_dir() {
+            connection_ok(stream);
             println!("This is a directory. Looking for index.html");
             match read_to_string("index.html") {
                 Ok(_content) => {}
@@ -127,6 +127,7 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
             }
         }
         if metadata.is_file() {
+            connection_ok(stream);
             println!("This is a file. Attempt to retrieve content.");
             match read_to_string(target_path) {
                 Ok(content) => {
