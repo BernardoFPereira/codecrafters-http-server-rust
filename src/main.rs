@@ -104,6 +104,7 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
             let path = Path::new(&split_endpoint.1);
             if let Ok(metadata) = path.metadata() {
                 connection_ok(stream);
+                println!("{:?}", metadata);
                 return;
             }
         }
