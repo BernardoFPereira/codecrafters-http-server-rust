@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 struct Request {
     request_line: String,
-    host_name: String,
+    // host_name: String,
     headers: Vec<String>,
 }
 impl Request {
@@ -22,7 +22,7 @@ impl Request {
 
         Self {
             request_line: http_request[0].clone(),
-            host_name: http_request[1].clone(),
+            // host_name: http_request[1].clone(),
             headers: http_request[2..].to_vec(),
         }
     }
@@ -159,20 +159,20 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
     }
 }
 
-fn parse_request(request: &Request) -> Result<(String, String, String, Vec<String>), String> {
-    let headers = request.headers.clone();
+// fn parse_request(request: &Request) -> Result<(String, String, String, Vec<String>), String> {
+//     let headers = request.headers.clone();
 
-    if let Some((method, target, _)) = request.request_line.split_whitespace().collect_tuple() {
-        return Ok((
-            method.to_string(),
-            target.to_string(),
-            request.host_name.clone(),
-            headers,
-        ));
-    }
+//     if let Some((method, target, _)) = request.request_line.split_whitespace().collect_tuple() {
+//         return Ok((
+//             method.to_string(),
+//             target.to_string(),
+//             request.host_name.clone(),
+//             headers,
+//         ));
+//     }
 
-    return Err("Malformed request!".to_string());
-}
+//     return Err("Malformed request!".to_string());
+// }
 
 fn parse_request_line(request_line: &String) -> (String, String) {
     if let Some((func, args, _)) = request_line.split_whitespace().collect_tuple() {
