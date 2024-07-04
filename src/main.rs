@@ -140,8 +140,8 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
                 }
                 Err(_) => {
                     println!("Error reading page contents!");
-                    not_found(stream);
-                    return;
+                    // not_found(stream);
+                    // return;
                 }
             }
         }
