@@ -101,10 +101,17 @@ fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
         }
         "files" => {
             // TODO -- look for specified path
-            let path = Path::new(&split_endpoint.1);
-            if let Ok(metadata) = path.metadata() {
+            let path = Path::new(&split_endpoint.1).to_owned();
+            if let Ok(content) = read_to_string(path.clone()) {
+                // if let Ok(metadata) = path.metadata() {
                 connection_ok(stream);
-                println!("{:?}", metadata);
+                let length = content.len();
+                let content_type = "application/octet";
+                let response = format!(
+                    "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
+                );
+                // println!("{:?}", content);
+                stream.write(response.as_bytes()).unwrap();
                 return;
             }
         }
