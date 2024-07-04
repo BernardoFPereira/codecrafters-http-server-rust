@@ -2,7 +2,6 @@
 use std::fs::*;
 use std::io::{prelude::*, BufReader};
 use std::net::{TcpListener, TcpStream};
-use std::ops::Deref;
 use std::path::*;
 
 use itertools::Itertools;
@@ -43,15 +42,15 @@ fn main() {
 
                 let http_request = Request::new(&mut stream);
 
-                match parse_request(&http_request) {
-                    Ok(value) => {
-                        println!("{value:?}");
-                    }
-                    Err(e) => {
-                        println!("{e}");
-                        continue;
-                    }
-                };
+                // match parse_request(&http_request) {
+                //     Ok(value) => {
+                //         println!("{value:?}");
+                //     }
+                //     Err(e) => {
+                //         println!("{e}");
+                //         continue;
+                //     }
+                // };
 
                 let (_method, endpoint) = parse_request_line(&http_request.request_line);
 
@@ -67,56 +66,66 @@ fn main() {
 }
 
 fn handle_request(stream: &mut TcpStream, request: &Request, endpoint: String) {
-    let mut split_target = endpoint.split('/').filter(|string| !string.is_empty());
+    let split_endpoint = if let Some((cmd, args)) = endpoint[1..].split_once('/') {
+        (cmd.to_string(), args.to_string())
+    } else {
+        (endpoint[1..].to_string(), "".to_string())
+    };
 
-    if let Some(cmd) = split_target.clone().next() {
-        match cmd.trim().to_lowercase().as_str() {
-            "echo" => {
-                let content = split_target.clone().skip(1).next().unwrap();
-                let length = &content.len();
-                let content_type = "text/plain";
+    // println!("{:?}", split_endpoint);
 
-                let response_content = format!(
-                    "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
-                );
-                connection_ok(stream);
-                stream.write(response_content.as_bytes()).unwrap();
-                return;
-            }
-            "user-agent" => {
-                let agent_header = request
-                    .headers
-                    .iter()
-                    .find(|header| header.contains("User-Agent:"))
-                    .unwrap()
-                    .to_owned();
+    // if let (cmd, args) = split_endpoint {
+    match split_endpoint.0.trim().to_lowercase().as_str() {
+        "echo" => {
+            let content = split_endpoint.1;
+            let length = &content.len();
+            let content_type = "text/plain";
 
-                // println!("{:?}", agent_header);
-
-                let content = agent_header.split_once(" ").unwrap().1.to_string();
-
-                let length = agent_header.len();
-                let content_type = "text/plain";
-
-                let response_content = format!(
-                    "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
-                );
-
-                connection_ok(stream);
-                stream.write(response_content.as_bytes()).unwrap();
-                return;
-            }
-            _ => {}
+            let response_content = format!(
+                "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
+            );
+            connection_ok(stream);
+            stream.write(response_content.as_bytes()).unwrap();
+            return;
         }
+        "user-agent" => {
+            let agent_header = request
+                .headers
+                .iter()
+                .find(|header| header.contains("User-Agent:"))
+                .unwrap()
+                .to_owned();
+
+            // println!("{:?}", agent_header);
+
+            let content = agent_header.split_once(" ").unwrap().1.to_string();
+            let length = content.len();
+            let content_type = "text/plain";
+
+            let response_content = format!(
+                "Content-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{content}"
+            );
+
+            connection_ok(stream);
+            stream.write(response_content.as_bytes()).unwrap();
+            return;
+        }
+        _ => {}
     }
+    // }
 
     println!("Looking for page: {}", endpoint);
 
-    let joined_target = split_target.join(MAIN_SEPARATOR_STR);
-    let target_path = if joined_target.is_empty() {
+    let formatted_endpoint = endpoint
+        .split("/")
+        .filter(|e| !e.is_empty())
+        .join(MAIN_SEPARATOR_STR);
+    // let target_path = if joined_target.is_empty() {
+    // let formatted_path = spl
+    let target_path = if formatted_endpoint.is_empty() {
         Path::new(MAIN_SEPARATOR_STR)
     } else {
-        Path::new(&joined_target)
+        Path::new(&formatted_endpoint)
     };
 
     println!("Target Path: {:?}", target_path);
